@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /* eslint-disable no-unused-vars */
 const {MongoClient, Db} = require('mongodb');
 const intersection = require('lodash/intersection');
