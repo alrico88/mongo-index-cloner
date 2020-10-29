@@ -7,6 +7,7 @@ const ora = require('ora');
 const chalk = require('chalk');
 const {program} = require('commander');
 const packageJSON = require('./package.json');
+const Table = require('cli-table3');
 
 // Program args definition and parsing
 
@@ -50,10 +51,8 @@ async function createClient(connection) {
  * @returns {Promise<string[]>}
  */
 async function getCollections(connection) {
-  const spinner = ora(`Getting collections from ${connection}`).start();
   const db = await createClient(connection);
   const collections = await (await db.listCollections().toArray()).map((d) => d.name);
-  spinner.succeed(`Got ${collections.length} collection(s) from ${connection}`);
   return collections;
 }
 
@@ -92,26 +91,54 @@ async function createIndex(connection, collection, indexContent, indexName) {
 }
 
 async function init() {
-  const fromDB = program.from;
-  const toDB = program.to;
+  const {from, to} = program;
+  const loadCollectionsSpinner = ora(`Getting collections from ${from} and ${to}`).start();
   const [fromCollections, toCollections] = await Promise.all([
-    getCollections(fromDB),
-    getCollections(toDB),
+    getCollections(from),
+    getCollections(to),
   ]);
+
   const collectionsToDo = intersection(fromCollections, toCollections).sort();
-  ora(`Got ${collectionsToDo.length} collection(s) matching in both databases`).succeed();
+  loadCollectionsSpinner.succeed(`Got ${collectionsToDo.length} collection(s) matching in both databases`);
+
+  const summary = [];
+
   for (const collection of collectionsToDo) {
-    const existingIndexes = await getIndexes(fromDB, collection);
+    const existingIndexes = await getIndexes(from, collection);
+
+    const collectionSummary = {
+      collection,
+      indexes: [],
+    };
+
     for (const index of existingIndexes) {
       const {name, key} = index;
+      collectionSummary.indexes.push(name);
+
       if (name !== '_id_') {
-        const spinner = ora(`Creating index "${chalk.blue(name)}" in collection "${chalk.yellow(collection)}"`).start();
-        await createIndex(toDB, collection, key, name);
+        const spinner = ora(`Creating index ${chalk.blue(name)} in collection ${chalk.yellow(collection)}`).start();
+        await createIndex(to, collection, key, name);
         spinner.succeed();
       }
     }
+
+    summary.push(collectionSummary);
   }
+
   ora(`Created all ${collectionsToDo.length} collections' indexes successfully`).succeed();
+
+  const summaryTable = new Table({
+    head: ['Collection', 'No. of indexes', 'Indexes'].map((d) =>
+      chalk.yellow(d)),
+  });
+
+  summary.forEach(({collection, indexes}) => {
+    summaryTable.push([collection, indexes.length, indexes.join('\n')]);
+  });
+
+  // eslint-disable-next-line no-console
+  console.log(summaryTable.toString());
+
   process.exit(0);
 }
 
