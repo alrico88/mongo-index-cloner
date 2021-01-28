@@ -113,12 +113,17 @@ async function init() {
 
     for (const index of existingIndexes) {
       const {name, key} = index;
-      collectionSummary.indexes.push(name);
 
       if (name !== '_id_') {
-        const spinner = ora(`Creating index ${chalk.blue(name)} in collection ${chalk.yellow(collection)}`).start();
-        await createIndex(to, collection, key, name);
-        spinner.succeed();
+        const indexTag = `${chalk.blue(name)} in collection ${chalk.yellow(collection)}`;
+        const spinner = ora(`Creating index ${indexTag}`).start();
+        try {
+          await createIndex(to, collection, key, name);
+          collectionSummary.indexes.push(name);
+          spinner.succeed();
+        } catch (e) {
+          spinner.fail(`Error creating index ${indexTag}, ${e.message}`);
+        }
       }
     }
 
