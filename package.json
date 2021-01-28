@@ -1,6 +1,6 @@
 {
   "name": "mongo-index-cloner",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "CLI program to clone MongoDB indexes from a database to another",
   "main": "index.js",
   "homepage": "https://github.com/alrico88/mongo-index-cloner",
